@@ -16,7 +16,7 @@ st.markdown(
     ionizáveis presentes em moléculas quaisquer.
 
     No entanto, a ferramenta que possibilita este cálculo
-    de ionização, a ***Dimorphite-DL***, alerta para
+    de ionização, a ***[Dimorphite-DL](https://durrantlab.github.io/dimorphite_dl/)***, alerta para
     dificuldades com aminas terciárias e com os heterociclos
     indóis e pirróis.
     """
