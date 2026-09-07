@@ -12,3 +12,5 @@ dependencies = [
     "polars",
     "numpy",
 ]
+[project.scripts]
+titular-web="titular.cli:main"

@@ -2,7 +2,8 @@ import numpy as np
 import polars as pl
 import plotly.express as px
 import streamlit as st
-from logic import titurate, smiles_to_svg, validate_smiles
+
+from titular.logic import titurate, smiles_to_svg, validate_smiles
 
 
 st.title("Olá, estudante! 👋")
@@ -17,7 +18,7 @@ st.markdown(
     No entanto, a ferramenta que possibilita este cálculo
     de ionização, a ***Dimorphite-DL***, alerta para
     dificuldades com aminas terciárias e com os heterociclos
-    indóis e pirróis (indoles e pyrroles?).
+    indóis e pirróis.
     """
 )
 

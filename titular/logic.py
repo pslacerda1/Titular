@@ -1,14 +1,9 @@
 import numpy as np
-import logging
-from base64 import b64encode
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.MolStandardize import rdMolStandardize
-from dimorphite_dl import protonate_smiles, enable_logging
-
-
-enable_logging(logging.WARNING)
+from dimorphite_dl import protonate_smiles
 
 
 def titurate(
