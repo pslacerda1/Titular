@@ -3,7 +3,7 @@ import polars as pl
 import plotly.express as px
 import streamlit as st
 
-from titular.logic import titurate, smiles_to_svg, validate_smiles
+from titular.logic import titurate_a, smiles_to_svg, validate_smiles
 
 
 st.title("Olá, estudante! 👋")
@@ -16,9 +16,9 @@ st.markdown(
     ionizáveis presentes em moléculas quaisquer.
 
     No entanto, a ferramenta que possibilita este cálculo
-    de ionização, a ***[Dimorphite-DL](https://durrantlab.github.io/dimorphite_dl/)***, alerta para
-    dificuldades com aminas terciárias e com os heterociclos
-    indóis e pirróis.
+    de ionização, a ***[Dimorphite-DL](https://durrantlab.github.io/dimorphite_dl/)***,
+    alerta para dificuldades com aminas terciárias e com
+    os heterociclos indóis e pirróis.
     """
 )
 
@@ -33,73 +33,56 @@ with st.container(border=True):
         value="N[C@@H](Cc1c[nH]cn1)C(=O)O",
     )
 
+    #
+    # Opção por tipo de gráfico
+    #
+    chart_option = st.selectbox(
+        "Gráfico:",
+        ['Tipo A', 'Tipo B']
+    )
     try:
         validate_smiles(input_smiles)
     except Exception as exc:
         st.error("Falha ao validar o SMILES")
         st.stop()
 
-    smiles_dict = titurate(input_smiles)
-    ph_list = list(smiles_dict.keys())
-
+if chart_option == 'Tipo A':
+    df = titurate_a(input_smiles)
+    df_plot = (
+        df
+        .with_columns(
+            zero = pl.lit(0),
+            ph = pl.struct(['begin', 'end'])
+                .map_elements(
+                    lambda row: np.linspace(row['begin'], row['end']),
+                    return_dtype=pl.List(pl.Float64),
+                    returns_scalar=True,
+                )
+        )
+        .explode('ph')
+        .rename({
+            'ph': 'x',
+            'label': 'pH',
+        })
+    )
 
     #
     # Barra de pH
     #
 
-    segment_list = []
-    begin_list = []
-    end_list = []
-    name_list = []
-
-    for i, ph in enumerate(range(len(ph_list) - 1)):
-        begin = ph_list[i]
-        end = ph_list[i+1]
-
-        line_segment = np.linspace(begin, end-0.1)
-
-        name = f"[{begin:.1f},{end:.1f}"
-        if end >= 14.0:
-            name += "]"
-        else:
-            name += ")"
-
-        segment_list.extend(line_segment)
-        begin_list.extend([begin] * len(line_segment))
-        end_list.extend([end] * len(line_segment))
-        name_list.extend([name] * len(line_segment))
-
-    if end < 14.0:
-        begin = end - 0.1
-        end = 14.0
-        line_segment = np.linspace(begin, end)
-        end = 14.0
-        name = f"[{begin:.1f},{end:.1f}]"
-
-        segment_list.extend(line_segment)
-        begin_list.extend([begin] * len(line_segment))
-        end_list.extend([end] * len(line_segment))
-        name_list.extend([name] * len(line_segment))
-
-    df = pl.DataFrame({
-        'x': segment_list,
-        'zero': [0] * len(segment_list),
-        'pH': name_list,
-        'begin': begin_list,
-        'end': end_list,
-    })
     fig = px.line(
-        df,
+        df_plot,
         x='x', y='zero', color='pH',
         markers=True,
-        hover_data={
-            'pH': True,
-            'x': False,
-            'zero': False
-        },
-        custom_data=['begin', 'end']
+        custom_data=['pH', 'begin', 'end']
     )
-    fig.update_traces(line=dict(width=40))
+    fig.update_traces(
+        line=dict(width=40),
+        hovertemplate=(
+            "pH ∈ %{customdata[0]}"
+            "<extra></extra>"
+        )
+    )
     fig.update_layout(
         xaxis=dict(visible=True, showgrid=True, zeroline=False, fixedrange=True, ),
         yaxis=dict(visible=False, showgrid=False, zeroline=False, fixedrange=True),
@@ -109,7 +92,7 @@ with st.container(border=True):
         margin=dict(l=0, r=0, t=0, b=0),
         height=100,
         xaxis_title=None,
-        hoverlabel=dict(font_size=16, font_family="sans-serif")
+        hoverlabel=dict(font_size=16, font_family="sans-serif"),
     )
 
 
@@ -126,17 +109,26 @@ with st.container(border=True):
         },
     )
 
-points = event['selection']['points']
-if points:
-    clicked_ph = points[0]['x']
-    begin, end, ph_range = points[0]['customdata']
-    for ph_ref, smiles_set in smiles_dict.items():
-        if begin <= ph_ref < end:
-            st.header(f"pH ∈ {ph_range}")
-            for i in range(max(len(smiles_set) // 3, 1)):
-                for column in st.columns(3):
-                    with column:
-                        if smiles_set:
-                            smiles = smiles_set.pop()
-                            st.text(smiles)
-                            st.image(smiles_to_svg(smiles))
+    points = event['selection']['points']
+    if points:
+        label, begin, end = points[0]['customdata']
+
+        smiles_set = (
+            df
+            .filter(
+                pl.col('begin') == begin,
+                pl.col('end') == end
+            )
+            .get_column('smiles')
+            .first()
+        )
+
+        st.header(f"pH ∈ {label}")
+        for column in st.columns(len(smiles_set)):
+            with column:
+                smiles = smiles_set.pop()
+                st.text(smiles)
+                st.image(smiles_to_svg(smiles))
+
+elif chart_option == 'Tipo B':
+    pass
