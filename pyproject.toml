@@ -2,7 +2,7 @@
 name = "Titular"
 authors = [{ name = "Pedro Sousa Lacerda", email = "pslacerda@gmail.com" }]
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.13, <3.14"
 description = "A química do pH e pKa explicate e ilustrada."
 dependencies = [
     "dimorphite-dl",
