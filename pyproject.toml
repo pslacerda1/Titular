@@ -11,6 +11,7 @@ dependencies = [
     "plotly-express",
     "polars",
     "numpy",
+    "ordered-set",
 ]
 
 [build-system]

@@ -1,5 +1,8 @@
+import base64
+import itertools
 import numpy as np
 import polars as pl
+from ordered_set import OrderedSet
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
@@ -12,14 +15,15 @@ def titurate(
     ph_min: float = 0.0,
     ph_max: float = 14.0,
     precision: float = 0.1,
-) -> dict[float, set[str]]:
-    """Titurate a molecule originating protomeric species
+) -> pl.DataFrame:
+    """
+    Titurate a molecule returning protomeric microstates.
 
     It works by sampling microstates at each pH interval.
     """
 
     ph_list = np.arange(ph_min, ph_max + precision * 0.5, precision)
-    #
+
     curve = {}
     for ph in ph_list:
         ph = round(ph, 1)
@@ -30,66 +34,52 @@ def titurate(
             precision=precision,
         )
         curve[ph] = set(smiles_list)
-    return curve
 
+    new_curve: dict[str, set[tuple[float, float]]] = {}
+    all_smiles = OrderedSet(itertools.chain.from_iterable(curve.values()))
 
-def titurate_a(smi: str):
-    """Titurate a molecule but keep only transitions."""
+    for smi in all_smiles:
+        begin, end = None, None
+        i = 0
+        if smi not in new_curve:
+            new_curve[smi] = set()
+        for ph, smiles_set in curve.items():
+            if begin is None and smi in smiles_set:
+                begin = ph
+            if begin is not None and ((smi not in smiles_set) != (ph == 14.0)):
+                end = ph
+                if i > 0:
+                    raise RuntimeError(f"Unexpected additional range for '{smi}'.")
+                new_curve[smi].add((begin, end))
+                i += 1
+                begin, end = None, None
 
-    curve = titurate(smi)
-
-    curve_keys = list(curve)
-    new_curve = {}
-    for i in range(len(curve)):
-        ph_curr = curve_keys[i]
-        if i == 0:
-            new_curve[ph_curr] = curve[ph_curr]
-            continue
-        ph_prev = curve_keys[i - 1]
-        if curve[ph_curr] != curve[ph_prev]:
-            new_curve[ph_curr] = curve[ph_curr]
-
-    begin_list = []
-    end_list = []
-    label_list = []
     smiles_list = []
+    begin_list = []
+    span_list = []
+    label_list = []
+    img_list = []
 
-    ph_list = list(new_curve.keys())
-
-    for i in range(len(ph_list) - 1):
-        begin = ph_list[i]
-        end = ph_list[i+1]
-        smi = new_curve[begin]
-
-        label = f"[{begin:.1f},{end:.1f}"
+    for smi, spans_set in new_curve.items():
+        begin, end = spans_set.pop()
+        smiles_list.append(smi)
+        begin_list.append(begin)
+        span_list.append(end - begin)
+        label = f"[{begin:.1f}, {end:.1f}"
         if end >= 14.0:
             label += "]"
         else:
             label += ")"
-
-        begin_list.append(begin)
-        end_list.append(end)
-        smiles_list.append(smi)
         label_list.append(label)
-
-    if end < 14.0:
-        begin = end
-        end = 14.0
-        smi = new_curve[begin]
-        label = f"[{begin:.1f},{end:.1f}]"
-
-        begin_list.append(begin)
-        end_list.append(end)
-        smiles_list.append(smi)
-        label_list.append(label)
+        img_list.append(svg_to_imgdata(smiles_to_svg(smi)))
 
     return pl.DataFrame({
-        'begin': begin_list,
-        'end': end_list,
         'smiles': smiles_list,
+        'begin': begin_list,
+        'span': span_list,
         'label': label_list,
+        'img': img_list,
     })
-
 
 
 def smiles_to_svg(
@@ -106,6 +96,10 @@ def smiles_to_svg(
     svg = d2d.GetDrawingText()
     return svg
 
+
+def svg_to_imgdata(svg: str) -> str:
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
+    return f'data:image/svg+xml;base64,{b64}'
 
 def validate_smiles(smi: str) -> bool:
     return bool(rdMolStandardize.ValidateSmiles(smi))
