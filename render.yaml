@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: titular
+    env: python
+    buildCommand: "uv cache prune && uv sync --frozen"
+    startCommand: "uv run streamlit run titular/app.py"
+    apt:
+      - libxrender1
+      - libgl1-mesa-glx
