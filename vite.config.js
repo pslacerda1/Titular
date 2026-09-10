@@ -6,12 +6,12 @@ export default defineConfig({
         minify: false,
         cssMinify: false,
         lib: {
-            entry: 'kekule.js',
+            entry: 'kekule_editor/kekule.js',
             name: 'KekuleEditor',
             fileName: 'kekule-bundle',
             formats: ['es']
         },
-        outDir: '../titular',
+        outDir: 'titular',
         emptyOutDir: false,
         rollupOptions: {
             output: {
