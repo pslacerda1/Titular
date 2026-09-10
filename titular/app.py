@@ -5,6 +5,7 @@ from titular.logic import (
     titurate,
     validate_smiles
 )
+from titular.kekule import kekule_editor
 
 st.title("Olá, estudante! 👋")
 st.markdown(
@@ -15,34 +16,47 @@ st.markdown(
     decorrentes da protonação/desprotonação de sítios
     ionizáveis presentes em moléculas quaisquer.
 
+    A concentração de hidrogênio no meio (o pH mede
+    isso de um jeito engraçado, pelo inverso), quando
+    está baixa, puxa os hidrogênios da molécula para
+    o meio/solução, fazendo a molécula ficar faltando
+    tal átomo e deixando a carga da moléucla negativa.
+    Se a concentração estiver alta, fará grudar os hidrgênios
+    na molécula tornando-a um íon positivo. O valor de
+    pH que essas transformações ocorrem é conhecido
+    como pKa.
+
+    Se houver mais de um ponto/átomo sujeito a alteração
+    de carga pela adição/remoção de hidrogênio, então
+    haverá mais de um pkA.
+
     **Atenção**: a ferramenta que possibilita este cálculo
     de ionização, a *[Dimorphite-DL](https://durrantlab.github.io/dimorphite_dl/)*,
     alerta para dificuldades com aminas terciárias e com
-    os heterociclos indóis e pirróis.
+    os heterociclos indol e pirrol.
     """
 )
 
 
 with st.container(border=True):
-    #
-    # Área de digitação de molécula
-    #
-    input_smiles = st.text_input(
-        "Molécula SMILES:",
-        persist_state='page',
-        key='key_smiles',
-        value="N[C@@H](Cc1c[nH]cn1)C(=O)O",
+
+    smiles = kekule_editor(
+        key='key_kekule_editor',
     )
 
+    if not smiles:
+        st.stop()
     try:
-        validate_smiles(input_smiles)
+        validate_smiles(smiles)
     except Exception as exc:
         st.error("Falha ao validar o SMILES")
         st.stop()
 
 
+@st.fragment
+def main_area():
     st.text("Diagrama de Titulação:")
-    df = titurate(input_smiles)
+    df = titurate(smiles)
     fig = px.bar(
         df,
         x='span',
@@ -84,8 +98,9 @@ with st.container(border=True):
         },
     )
 
-points = event['selection']['points']
-if points:
-    label, img, begin = points[0]['customdata']
-    st.header(f"pH ∈ {label}")
-    st.image(img)
+    points = event['selection']['points']
+    if points:
+        label, img, begin = points[0]['customdata']
+        st.header(f"pH ∈ {label}")
+        st.image(img)
+main_area()

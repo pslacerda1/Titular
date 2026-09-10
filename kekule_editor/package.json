@@ -1,0 +1,14 @@
+{
+  "name": "ketcher_editor",
+  "type": "module",
+  "main": "ketcher.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "kekule": "^1.0.4"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}
