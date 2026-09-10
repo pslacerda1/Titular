@@ -15,10 +15,14 @@ const KekuleEditor = (component) => {
     composer = new Kekule.Editor.Composer(parentElement.firstChild);
     COMPOSER_WIDGETS.set(parentElement.firstChild, composer);
 
+    let lastSmiles = null;
     composer.on('operChange', function (evt) {
         const mols = composer.exportObjs(Kekule.Molecule);
         const smiles = Kekule.IO.saveFormatData(mols[0], 'smi');
-        setTriggerValue('smiles', smiles ?? null);
+        if (smiles != lastSmiles) {
+            setTriggerValue('smiles', smiles);
+            lastSmiles = smiles;
+        }
     });
 }
 
