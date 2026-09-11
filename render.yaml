@@ -5,17 +5,16 @@ services:
     region: ohio  # melhor latência pra BR
     plan: free
     buildCommand: |
+      apt-get update
+      apt-get install libxrender1 libgl1-mesa-glx
       npm install
       npm run build
       uv cache prune
       uv sync --frozen
     startCommand: |
       streamlit run titular/app.py --server.port $PORT --server.address 0.0.0.0
-    apt:
-      - libxrender1       # necessário para RDkit
-      - libgl1-mesa-glx   # idem
     envVars:
     - key: PYTHON_VERSION
-      value: 3.14.3
+      value: 3.14.x
     - key: NODE_VERSION
-      value: 26.8.2
+      value: 26.x
