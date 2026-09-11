@@ -1,9 +1,21 @@
 services:
   - type: web
-    name: titular
+    name: Titular
     env: python
-    buildCommand: "uv cache prune && uv sync --frozen"
-    startCommand: "uv run streamlit run titular/app.py"
+    region: ohio  # melhor latência pra BR
+    plan: free
+    buildCommand: |
+      npm install
+      npm run build
+      uv cache prune
+      uv sync --frozen
+    startCommand: |
+      streamlit run titular/app.py --server.port $PORT --server.address 0.0.0.0
     apt:
-      - libxrender1
-      - libgl1-mesa-glx
+      - libxrender1       # necessário para RDkit
+      - libgl1-mesa-glx   # idem
+    envVars:
+    - key: PYTHON_VERSION
+      value: 3.14.3
+    - key: NODE_VERSION
+      value: 26.8.2
