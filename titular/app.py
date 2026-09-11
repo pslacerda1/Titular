@@ -7,6 +7,11 @@ from titular.logic import (
 )
 from titular.kekule import kekule_editor
 
+st.set_page_config(
+    page_title="Titular: (des)protonação ilustrada",
+    layout="centered",
+)
+
 st.title("Olá, estudante! 👋")
 st.markdown(
     """
