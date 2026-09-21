@@ -8,6 +8,7 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from dimorphite_dl import protonate_smiles
+import numpy as np
 
 
 def titurate(
@@ -15,7 +16,7 @@ def titurate(
     ph_min: float = 0.0,
     ph_max: float = 14.0,
     precision: float = 0.1,
-) -> pl.DataFrame:
+) -> tuple[pl.DataFrame, dict[str, str]]:
     """
     Titurate a molecule returning protomeric microstates.
 
@@ -54,32 +55,24 @@ def titurate(
                 i += 1
                 begin, end = None, None
 
-    smiles_list = []
-    begin_list = []
-    span_list = []
-    label_list = []
-    img_list = []
+    pka_list = []
+    smi2img = {}
 
     for smi, spans_set in new_curve.items():
         begin, end = spans_set.pop()
-        smiles_list.append(smi)
-        begin_list.append(begin)
-        span_list.append(end - begin)
-        label = f"[{begin:.1f}, {end:.1f}"
-        if end >= 14.0:
-            label += "]"
-        else:
-            label += ")"
-        label_list.append(label)
-        img_list.append(svg_to_imgdata(smiles_to_svg(smi)))
+        pka_list.append((begin + end) / 2)
+        smi2img[smi] = svg_to_imgdata(smiles_to_svg(smi))
 
-    return pl.DataFrame({
-        'smiles': smiles_list,
-        'begin': begin_list,
-        'span': span_list,
-        'label': label_list,
-        'img': img_list,
+    alphas = calculate_polyprotic_fractions(pka_list, ph_list)
+    num_species, num_ph = alphas.shape
+
+    df = pl.from_dict({
+        'ph': np.tile(ph_list, num_species),
+        'smiles': np.repeat(list(smi2img.keys()), num_ph),
+        'image': np.repeat(list(smi2img.values()), num_ph),
+        'alpha': np.array(alphas).flatten().tolist(),
     })
+    return df
 
 
 def smiles_to_svg(
@@ -103,3 +96,44 @@ def svg_to_imgdata(svg: str) -> str:
 
 def validate_smiles(smi: str) -> bool:
     return bool(rdMolStandardize.ValidateSmiles(smi))
+
+
+def calculate_polyprotic_fractions(pKa_list, ph_range):
+    """
+    Calculates the fractional distribution (alpha) of species for a polyprotic system.
+
+    Parameters:
+        pKa_list (list): List of pKa values sorted in ascending order.
+        ph_range (array): NumPy array of pH values to evaluate.
+
+    Returns:
+        alphas (list of arrays): List containing the fraction (0.0 to 1.0) for each species.
+    """
+    # Convert pKa to Ka values
+    Ka = [10**(-pka) for pka in pKa_list]
+    N = len(Ka)  # Number of protonation steps
+
+    # Calculate [H+] for each pH value
+    h = 10**(-ph_range)
+
+    # Pre-allocate array for all terms in the denominator
+    # Term 0: [H+]^N
+    # Term 1: K1 * [H+]^(N-1)
+    # Term 2: K1 * K2 * [H+]^(N-2) ... etc.
+    terms = []
+
+    # Intermediate product accumulator for Ka values (K1, K1*K2, K1*K2*K3...)
+    ka_product = 1.0
+    for i in range(0, N):
+        ka_product *= Ka[i-1]
+        terms.append(ka_product * (h**(N - i)))
+
+    # Convert list of terms into a 2D numpy array for easy operations
+    terms = np.array(terms)
+
+    # The denominator D is the sum of all terms at each pH point
+    D = np.sum(terms, axis=0)
+
+    # Each alpha fraction is its respective term divided by D
+    alphas = [term / D for term in terms]
+    return np.array(alphas)
