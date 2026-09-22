@@ -1,7 +1,7 @@
 [project]
 name = "Titular"
 authors = [{ name = "Pedro Sousa Lacerda", email = "pslacerda@gmail.com" }]
-version = "0.1.0"
+version = "0.9.0"
 requires-python = ">3.14, <3.15"
 description = "A química do pH e pKa explicada e ilustrada."
 dependencies = [

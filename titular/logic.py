@@ -7,6 +7,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem import Crippen
 from dimorphite_dl import protonate_smiles
 import numpy as np
 
@@ -16,7 +17,7 @@ def titurate(
     ph_min: float = 0.0,
     ph_max: float = 14.0,
     precision: float = 0.1,
-) -> tuple[pl.DataFrame, dict[str, str]]:
+) -> pl.DataFrame:
     """
     Titurate a molecule returning protomeric microstates.
 
@@ -56,18 +57,24 @@ def titurate(
                 begin, end = None, None
 
     pka_list = []
+    logp_list = []
     smi2img = {}
 
     for smi, spans_set in new_curve.items():
         begin, end = spans_set.pop()
         pka_list.append((begin + end) / 2)
+        mol = Chem.MolFromSmiles(smi)
+        logp = Crippen.MolLogP(mol)
+        logp_list.append(logp)
         smi2img[smi] = svg_to_imgdata(smiles_to_svg(smi))
 
     alphas = calculate_polyprotic_fractions(pka_list, ph_list)
     num_species, num_ph = alphas.shape
 
-    df = pl.from_dict({
+    df = pl.DataFrame({
         'ph': np.tile(ph_list, num_species),
+        'pKa': np.repeat(list(pka_list), num_ph),
+        'logP': np.repeat(list(logp_list), num_ph),
         'smiles': np.repeat(list(smi2img.keys()), num_ph),
         'image': np.repeat(list(smi2img.values()), num_ph),
         'alpha': np.array(alphas).flatten().tolist(),

@@ -43,9 +43,13 @@ except Exception as exc:
     st.error("Falha ao validar molécula.")
     st.stop()
 
-st.text("Diagrama de Titulação:")
 df = titurate(smiles)
 
+st.text("Propriedades:")
+table = df.select('smiles', 'pKa', 'logP').unique()
+table
+
+st.text("Diagrama de Titulação:")
 fig = px.line(
     df,
     x='ph',
